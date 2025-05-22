@@ -1,18 +1,18 @@
-1. Base image
+# Base image
 FROM python:3.9-slim
 
-# 2. Thiết lập working directory
+# Set working directory
 WORKDIR /app
 
-# 3. Copy requirements và install
+# Copy requirements and install
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 4. Copy source code
+# Copy source code
 COPY . /app
 
-# 5. expose port
+# Expose port
 EXPOSE 8001
 
-# 6. Khởi động Uvicorn
+# Start Uvicorn server
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8001"]
