@@ -11,6 +11,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy source code
 COPY . /app
 
+RUN python3 -m nltk.downloader punkt stopwords
+
 # Expose port
 EXPOSE 8001
 
