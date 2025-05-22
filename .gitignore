@@ -6,7 +6,6 @@ __pycache__/
 nlp_env/
 
 # Docker
-**/nlp_service/Dockerfile
 **/nlp_service/__pycache__/
 
 # OS
