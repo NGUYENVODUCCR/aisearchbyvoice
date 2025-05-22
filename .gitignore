@@ -1,0 +1,13 @@
+# Python cache
+__pycache__/
+*.pyc
+
+# Virtual environments
+nlp_env/
+
+# Docker
+**/nlp_service/Dockerfile
+**/nlp_service/__pycache__/
+
+# OS
+.DS_Store
