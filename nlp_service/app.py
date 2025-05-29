@@ -82,7 +82,7 @@ async def clean_text(q: Query):
     ngrams = generate_ngrams(filtered, max_n=3)
     enhanced_tokens = filtered + ngrams
 
-        ngrams_display = [ng.replace('_', ' ') for ng in ngrams]
+    ngrams_display = [ng.replace('_', ' ') for ng in ngrams]
     return {
         'lang': lang,
         'tokens': enhanced_tokens,  # for backend matching
