@@ -5,3 +5,10 @@ nltk
 langdetect
 regex
 underthesea
+
+spacy
+vi-spacy           
+en-core-web-sm     
+openai-whisper     
+torch            
+soundfile         
