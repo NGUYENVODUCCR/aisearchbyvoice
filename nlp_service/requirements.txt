@@ -5,8 +5,3 @@ nltk
 langdetect
 regex
 underthesea
-spacy
-openai-whisper
-torch
-soundfile
-python-multipart
