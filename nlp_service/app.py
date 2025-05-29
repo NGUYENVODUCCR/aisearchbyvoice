@@ -1,100 +1,70 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI
 from pydantic import BaseModel
 from langdetect import detect
 import regex as re
 from underthesea import word_tokenize
 from nltk.corpus import stopwords
+from nltk.stem import WordNetLemmatizer
 import nltk
-import spacy
-import whisper
-import tempfile
-from typing import Union
+import unicodedata
 
-app = FastAPI(title="AI NLP Service")
+app = FastAPI(title="AI NLP Service - Enhanced")
 
-# --- Startup: download resources & initialize models ---
 @app.on_event("startup")
-async def setup_nlp_models():
-    # NLTK stopwords
+async def download_nltk_data():
     nltk.download('stopwords', quiet=True)
-    global STOPWORDS_EN, STOPWORDS_VI
-    STOPWORDS_EN = set(stopwords.words('english'))
-    STOPWORDS_VI = {
-        "và","là","của","có","cho","trong","một","những","với",
-        "được","không","cũng","rất","thì","đã","này","đó","khi","ra","ở","như"
-    }
+    nltk.download('wordnet', quiet=True)
+    nltk.download('omw-1.4', quiet=True)
 
-    # SpaCy models for advanced NLP
-    try:
-        nlp_en = spacy.load("en_core_web_sm")
-    except:
-        spacy.cli.download("en_core_web_sm")
-        nlp_en = spacy.load("en_core_web_sm")
-    try:
-        nlp_vi = spacy.load("vi_spacy")
-    except:
-        nlp_vi = None
+# Stopword sets
+en_stopwords = set(stopwords.words('english'))
+vi_stopwords = {
+    "và","là","của","có","cho","trong","một","những","với",
+    "được","không","cũng","rất","thì","đã","này","đó","khi","ra","ở","như"
+}
 
-    # Whisper for optional ASR (if audio input)
-    asr_model = whisper.load_model("base")
+# Lemmatizer for English
+wnl = WordNetLemmatizer()
 
-    app.state.nlp = { 'en': nlp_en, 'vi': nlp_vi }
-    app.state.asr = asr_model
-
-# Pydantic model for text input
-class TextQuery(BaseModel):
+class Query(BaseModel):
     text: str
 
-@app.post('/nlp/clean')
-async def clean_text(
-    query: Union[TextQuery, None] = None,
-    audio_file: UploadFile = File(None)
-):
-    # 1. Obtain text: from JSON or transcribe audio
-    if audio_file:
-        if not audio_file.content_type.startswith('audio/'):
-            raise HTTPException(status_code=415, detail="Upload audio file only.")
-        tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
-        content = await audio_file.read()
-        tmp.write(content); tmp.flush()
-        text = app.state.asr.transcribe(tmp.name)['text'].strip()
-    elif query:
-        text = query.text.strip()
-    else:
-        raise HTTPException(status_code=400, detail="Provide 'text' JSON or 'audio_file'.")
+def normalize_text(text: str) -> str:
+    # remove diacritics, normalize spaces
+    text = unicodedata.normalize('NFKD', text)
+    text = ''.join(c for c in text if not unicodedata.combining(c))
+    return re.sub(r"\s+", " ", text).strip()
 
-    # 2. Language detection
+def detect_language(text: str) -> str:
     try:
-        lang = detect(text)
+        return detect(text)
     except:
-        lang = 'unknown'
+        return 'unknown'
 
-    # 3. Tokenization & stopword removal
+@app.post('/nlp/clean')
+async def clean_text(q: Query):
+    raw_text = q.text.strip()
+    text = normalize_text(raw_text)
+    lang = detect_language(text)
+
+    # Tokenize
     if lang.startswith('vi'):
-        raw = word_tokenize(text, format='text').split()
-        stop_set = STOPWORDS_VI
-        nlp = app.state.nlp['vi']
+        tokens = word_tokenize(text, format='text').split()
+        stopwords_set = vi_stopwords
+        # Vietnamese lemmatization placeholder: keep tokens
+        lemmas = tokens
     else:
-        raw = re.findall(r"\p{L}+", text.lower())
-        stop_set = STOPWORDS_EN
-        nlp = app.state.nlp['en']
-    tokens = [t for t in raw if t.isalpha() and t not in stop_set]
+        tokens = re.findall(r"\p{L}+", text.lower())
+        stopwords_set = en_stopwords
+        # English lemmatization
+        lemmas = [wnl.lemmatize(tok) for tok in tokens]
 
-    # 4. Advanced NLP: lemmas, POS, entities
-    if nlp:
-        doc = nlp(" ".join(tokens))
-        lemmas = [tok.lemma_ for tok in doc]
-        pos_tags = [(tok.text, tok.pos_) for tok in doc]
-        entities = [(ent.text, ent.label_) for ent in doc.ents]
-    else:
-        lemmas, pos_tags, entities = tokens, [], []
+    # Filter tokens and lemmas
+    filtered_tokens = [t for t in tokens if t.isalpha() and t not in stopwords_set]
+    filtered_lemmas = [l for l in lemmas if l.isalpha() and l not in stopwords_set]
 
-    # 5. Return structured analysis
-    return JSONResponse({
+    return {
         'lang': lang,
-        'tokens': tokens,
-        'lemmas': lemmas,
-        'pos_tags': pos_tags,
-        'entities': entities
-    })
+        'tokens': filtered_tokens,
+        'lemmas': filtered_lemmas
+    }
