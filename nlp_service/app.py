@@ -43,7 +43,8 @@ async def setup_nlp_models():
     app.state.asr = asr_model
 
 # Pydantic model for text input
-type TextQuery = BaseModel(text: str)
+class TextQuery(BaseModel):
+    text: str
 
 @app.post('/nlp/clean')
 async def clean_text(
