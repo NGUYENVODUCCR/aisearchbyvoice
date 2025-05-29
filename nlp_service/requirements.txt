@@ -9,3 +9,4 @@ spacy
 openai-whisper
 torch
 soundfile
+python-multipart
