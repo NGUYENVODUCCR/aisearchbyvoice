@@ -16,12 +16,10 @@ async def download_nltk_data():
     nltk.download('wordnet', quiet=True)
     nltk.download('omw-1.4', quiet=True)
 
-# Stopword sets
 en_stopwords = set(stopwords.words('english'))
 vi_stopwords = {"và","là","của","có","cho","trong","một","những","với",
                 "được","không","cũng","rất","thì","đã","này","đó","khi","ra","ở","như"}
 
-# Lemmatizer for English
 wnl = WordNetLemmatizer()
 
 class Query(BaseModel):
@@ -29,7 +27,6 @@ class Query(BaseModel):
 
 
 def normalize_text(text: str, is_vi: bool) -> str:
-    # Normalize spaces; remove diacritics only for non-Vietnamese
     text = re.sub(r"\s+", " ", text).strip()
     if not is_vi:
         text = unicodedata.normalize('NFKD', text)
@@ -58,14 +55,11 @@ async def clean_text(q: Query):
     if not raw_text:
         raise HTTPException(status_code=400, detail="Empty text provided.")
 
-    # Detect language before normalizing
     lang = detect_language(raw_text)
     is_vi = lang.startswith('vi')
 
-    # Normalize text conditionally
     text = normalize_text(raw_text, is_vi)
 
-    # Tokenize & lemmatize
     if is_vi:
         tokens = word_tokenize(text, format='text').split()
         stop_set = vi_stopwords
@@ -75,16 +69,14 @@ async def clean_text(q: Query):
         stop_set = en_stopwords
         lemmas = [wnl.lemmatize(tok) for tok in tokens]
 
-    # Filter stopwords
     filtered = [t for t in lemmas if t.isalpha() and t not in stop_set]
 
-    # Generate bi- and tri-grams as combined tokens
     ngrams = generate_ngrams(filtered, max_n=3)
     enhanced_tokens = filtered + ngrams
 
     ngrams_display = [ng.replace('_', ' ') for ng in ngrams]
     return {
         'lang': lang,
-        'tokens': enhanced_tokens,  # for backend matching
-        'display_ngrams': ngrams_display  # for UI display without underscores
+        'tokens': enhanced_tokens,  
+        'display_ngrams': ngrams_display  
     }
